@@ -97,6 +97,8 @@ def parse_annotations(text):
         while pos < len(text) and text[pos] in " \t\r\n":
             pos += 1
         if pos >= len(text) or text[pos] != "(":
+            # 裸注解（@GetMapping / @PostMapping）表示映射到类级前缀本身，路径记为空
+            out.append((m.start(), m.end(), HTTP_BY_ANNOT.get(m.group(1)), []))
             continue
         args, end = _balanced(text, pos + 1)
         paths = re.findall(r'"((?:[^"\\]|\\.)*)"', args)
@@ -703,7 +705,7 @@ def handle(msg):
                 "workspaceSymbolProvider": True,
                 "textDocumentSync": 0,  # 不要文档同步，省开销
             },
-            "serverInfo": {"name": f"endpoint-nav-{INDEX.lang}", "version": "0.3.0"},
+            "serverInfo": {"name": f"endpoint-nav-{INDEX.lang}", "version": "0.3.1"},
         }})
         return
 
