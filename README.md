@@ -16,7 +16,7 @@ Java 与 Python 各注册一个语言服务器，共用同一份脚本，靠 `--
 | Python（FastAPI） | `@app.get` / `@router.post` / `@router.api_route`、`APIRouter(prefix=)`、`include_router` 跨文件前缀拼接、别名与相对导入、字符串常量、f-string 模板路径 | `POST /api/v1/users` |
 | Python（MCP Server） | `app.mount(...)` 挂载点、`@mcp.tool` / `@mcp.tool(name=...)` 工具名 | `MOUNT /mcp/jxb/activity/personal`<br>`TOOL list_submitted_unpublished_activity_ids` |
 
-Java 只扫描文件名以 `Controller.java` 结尾的文件；Python 扫描所有 `.py`，但跳过 `venv`、`.venv`、`site-packages`、`migrations`、`tests` 等目录。
+Java 扫描 `*Controller.java`，以及其他带 `@RestController` / `@Controller` 的 `.java`（XXL-JOB 的 `XxxJob.java` 触发入口即属此类）；`@FeignClient` 接口是出站调用方，不会收录。Python 扫描所有 `.py`，但跳过 `venv`、`.venv`、`site-packages`、`migrations`、`tests` 等目录。
 
 ## 安装
 

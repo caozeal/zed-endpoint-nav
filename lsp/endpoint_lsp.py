@@ -79,6 +79,9 @@ def _dedupe(seq):
 
 MAPPING_ANNOT = re.compile(r"@(Get|Post|Put|Delete|Patch|Request)Mapping\b")
 CLASS_DECL = re.compile(r"\bclass\s+(\w+)")
+# 服务端入口的类级注解。Feign 客户端接口虽然也写 @GetMapping，但用的是 @FeignClient，
+# 不在其中，正好被排除——它们是出站调用方，不是端点。
+JAVA_ENTRY_ANNOT = ("@RestController", "@Controller")
 HTTP_BY_ANNOT = {
     "Get": "GET",
     "Post": "POST",
@@ -120,6 +123,20 @@ def find_java_method(text, start):
         if ";" in s or "{" in s:
             return None
     return None
+
+
+def is_java_entry_file(path):
+    """文件名不是 *Controller.java 时，靠类注解判断是不是服务端入口。
+
+    XXL-JOB 这类触发入口常写成 XxxJob.java 且带 @RestController，
+    只按文件名过滤会整片漏掉。
+    """
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            text = f.read()
+    except OSError:
+        return False
+    return any(a in text for a in JAVA_ENTRY_ANNOT)
 
 
 def index_java_file(path):
@@ -577,8 +594,11 @@ class Index:
             self.root = os.path.abspath(root)
             self.py = PyIndexer(self.root)
 
-    def _want(self, fn):
-        java = self.lang in ("java", "both") and fn.endswith("Controller.java")
+    def _want(self, path):
+        fn = os.path.basename(path)
+        java = self.lang in ("java", "both") and fn.endswith(".java") and (
+            fn.endswith("Controller.java") or is_java_entry_file(path)
+        )
         py = self.lang in ("python", "both") and fn.endswith(".py")
         return java or py
 
@@ -590,8 +610,9 @@ class Index:
         for dirpath, dirnames, filenames in os.walk(self.root):
             dirnames[:] = [d for d in dirnames if d not in skip and not d.startswith(".")]
             for fn in filenames:
-                if self._want(fn):
-                    found.append(os.path.join(dirpath, fn))
+                path = os.path.join(dirpath, fn)
+                if self._want(path):
+                    found.append(path)
         return found
 
     def refresh(self, force=False):
@@ -611,7 +632,7 @@ class Index:
         changed = False
         alive = set()
         for path in self.files:
-            if not path.endswith("Controller.java"):
+            if not path.endswith(".java"):
                 continue
             alive.add(path)
             try:
@@ -705,7 +726,7 @@ def handle(msg):
                 "workspaceSymbolProvider": True,
                 "textDocumentSync": 0,  # 不要文档同步，省开销
             },
-            "serverInfo": {"name": f"endpoint-nav-{INDEX.lang}", "version": "0.3.1"},
+            "serverInfo": {"name": f"endpoint-nav-{INDEX.lang}", "version": "0.3.2"},
         }})
         return
 
